@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Lassu | Real-time YouTube Dashboard</title>
+    <meta name="description" content="Track YouTube creator subscribers and real-time statistics with clean alerts, Supabase cloud sync, and QR code device pairing.">
+    <meta name="theme-color" content="#050505">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lassu">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <header class="main-header">
+            <div class="logo">
+                <i data-lucide="play" class="yt-icon"></i>
+                <h1>Lassu</h1>
+            </div>
+            <div class="header-actions">
+                <div class="header-tools">
+                    <button id="pwa-install-btn" class="btn-icon btn-install-pwa" title="Install Lassu App" aria-label="Install Lassu on this device" style="display: none;">
+                        <i data-lucide="download"></i>
+                        <span class="install-btn-text">Install</span>
+                    </button>
+                    <button id="security-btn" class="btn-icon" title="Secret Code Settings" aria-label="Secret Code Security Settings">
+                        <i data-lucide="shield-check"></i>
+                    </button>
+                    <button id="qr-sync-btn" class="btn-icon" title="Share Session QR Code to Other Devices" aria-label="Share Session QR Code">
+                        <i data-lucide="qr-code"></i>
+                    </button>
+                    <button id="qr-scan-btn" class="btn-icon" title="Scan QR Code with Camera or File" aria-label="Scan QR Code">
+                        <i data-lucide="camera"></i>
+                    </button>
+                    <button id="settings-btn" class="btn-icon" title="Telegram & Sync Settings" aria-label="Telegram and Sync Settings">
+                        <i data-lucide="settings"></i>
+                        <span id="tg-timer-small" class="btn-timer-badge">--m</span>
+                    </button>
+                    <button id="cloud-sync-btn" class="btn-icon" title="Save / Upload Channels to Database" aria-label="Save Channels to Cloud Database">
+                        <i data-lucide="cloud-upload"></i>
+                    </button>
+                    <button id="refresh-btn" class="btn-icon" title="Refresh Stats" aria-label="Refresh YouTube Statistics">
+                        <i data-lucide="refresh-cw"></i>
+                    </button>
+                    <button id="home-btn" class="btn-icon" title="Back to Top" aria-label="Scroll to Top">
+                        <i data-lucide="home"></i>
+                    </button>
+                </div>
+                <button id="add-channel-btn" class="btn-primary" aria-label="Add YouTube Channel">
+                    <i data-lucide="plus"></i> <span class="btn-text">Add Channel</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- API Key Status / Configuration Notice -->
+        <div id="api-status-banner" class="api-status-banner" style="display: none;">
+            <div class="banner-content">
+                <i data-lucide="info" class="banner-icon"></i>
+                <div class="banner-text">
+                    <strong>Demo / Offline Mode</strong>
+                    <span id="api-banner-desc">YouTube Data API key is not configured. Displaying cached creator data. Set <code>VITE_YOUTUBE_API_KEY</code> in Settings to enable real-time YouTube sync.</span>
+                </div>
+            </div>
+            <button id="banner-action-btn" class="btn-banner-action" title="Open Settings" aria-label="Configure API Settings">Configure</button>
+        </div>
+
+    <!-- Settings Modal (Telegram & Cloud Sync) -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings & Notifications</h2>
+                <button class="close-settings" aria-label="Close Settings Dialog" style="background: transparent; border: none; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; min-width: 28px; display: inline-flex; align-items: center; justify-content: center;">
+                    <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                </button>
+            </div>
+            <p class="modal-hint">Configure Telegram alerts, Quota & Cloud synchronization.</p>
+            
+            <!-- Sync on Start Section -->
+            <div class="sync-start-card" style="margin-bottom: 0.9rem; padding: 0.8rem 0.9rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="cloud-lightning" style="width: 15px; height: 15px; color: var(--accent);"></i>
+                            Sync on Start
+                        </div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px;">
+                            Automatically pulls latest channel data from Supabase using authenticated code on app launch.
+                        </div>
+                    </div>
+                    <label class="switch-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; cursor: pointer;">
+                        <input type="checkbox" id="sync-on-start-toggle" checked style="opacity: 0; width: 0; height: 0;">
+                        <span class="switch-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .3s; border-radius: 24px;"></span>
+                    </label>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 0.6rem;">
+                    <button type="button" id="btn-open-qr-from-settings" class="btn-secondary" style="flex: 1; padding: 0.45rem; font-size: 0.75rem; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        <i data-lucide="qr-code" style="width: 14px; height: 14px;"></i> Share via QR Code
+                    </button>
+                    <button type="button" id="btn-pull-cloud-now" class="btn-secondary" style="flex: 1; padding: 0.45rem; font-size: 0.75rem; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        <i data-lucide="download-cloud" style="width: 14px; height: 14px;"></i> Pull Now
+                    </button>
+                </div>
+            </div>
+
+            <form id="telegram-form">
+                <div class="form-group">
+                    <label for="tg-token">Bot Token</label>
+                    <input type="text" id="tg-token" placeholder="Enter Bot Token from @BotFather" required>
+                </div>
+                <div class="form-group">
+                    <label for="tg-chatid">Chat ID</label>
+                    <input type="text" id="tg-chatid" placeholder="Enter Chat ID from @userinfobot" required>
+                </div>
+                <div class="form-group">
+                    <label for="tg-interval">Notification Interval</label>
+                    <select id="tg-interval">
+                        <option value="5">Every 5 Minutes</option>
+                        <option value="15">Every 15 Minutes</option>
+                        <option value="30">Every 30 Minutes</option>
+                        <option value="60" selected>Every 60 Minutes</option>
+                    </select>
+                </div>
+                <div id="quota-monitor" style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 12px; font-size: 0.8rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: var(--text-secondary);">Active Keys:</span>
+                        <span id="active-keys-count" style="color: var(--success); font-weight: bold;">0/0</span>
+                    </div>
+                    <div id="keys-status-list" style="display: flex; flex-direction: column; gap: 4px;">
+                        <!-- Key statuses will appear here -->
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Save & Start Bot</button>
+                <button type="button" id="test-tg" class="btn-secondary" style="margin-top: 0.5rem">Send Test Message</button>
+            </form>
+        </div>
+    </div>
+
+        <main class="dashboard">
+            <div class="dashboard-controls">
+                <div class="search-box">
+                    <label for="channel-search" class="visually-hidden">Search Channels</label>
+                    <input type="text" id="channel-search" placeholder="Search tracked channels...">
+                </div>
+                <div class="sort-options">
+                    <label for="sort-select">Sort By:</label>
+                    <select id="sort-select" aria-label="Sort tracked channels">
+                        <option value="subs-desc">Subscribers (High to Low)</option>
+                        <option value="subs-asc">Subscribers (Low to High)</option>
+                        <option value="views-desc">Views (High to Low)</option>
+                        <option value="views-asc">Views (Low to High)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="channel-list" class="channel-grid">
+                <!-- Channels will be injected here -->
+                <div class="empty-state">
+                    <i data-lucide="layout" class="empty-icon"></i>
+                    <p>No channels added yet. Start by adding your favorite creator!</p>
+                </div>
+            </div>
+            <div id="last-updated" style="text-align: center; font-size: 0.75rem; color: var(--text-secondary); margin-top: 2rem;">
+                Syncing stats in real-time...
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for adding channel -->
+    <div id="add-modal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h2>Add YouTube Channel</h2>
+                <button class="close-modal" aria-label="Close Add Channel Dialog"><i data-lucide="x"></i></button>
+            </div>
+            <form id="add-channel-form">
+                <div class="form-group">
+                    <label for="channel-id">YouTube Channel Handle or ID</label>
+                    <div class="search-input-wrapper">
+                        <input type="text" id="channel-id" placeholder="@YouTubeHandle or ChannelID" required>
+                        <button type="submit" class="btn-search-trigger">Search</button>
+                    </div>
+                    <small>Example: @MrBeast or UC-lHJZR3Gqxm24_Vd_AJ5Yw</small>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="channel-secret-code">
+                        <i data-lucide="key" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>
+                        Enter Your 6-Digit Secret Code <span style="color: var(--accent);">*</span>
+                    </label>
+                    <input type="password" id="channel-secret-code" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="6-digit secret code" required autocomplete="off">
+                    <small style="color: var(--text-secondary);">Your secret code is verified before adding channels to the database.</small>
+                </div>
+            </form>
+            <div id="search-results" class="search-results-list">
+                <!-- Search results will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- First-Time / Re-Auth Secret Code Gate Modal (Create vs Login) -->
+    <div id="secret-gate-modal" class="modal">
+        <div class="modal-content glass gate-modal-content">
+            <div class="modal-header" style="justify-content: center; text-align: center; flex-direction: column; gap: 0.4rem;">
+                <div class="gate-icon-circle">
+                    <i data-lucide="shield-check" class="gate-icon"></i>
+                </div>
+                <h2 id="gate-title">Account Access</h2>
+                <p id="gate-subtitle" style="font-size: 0.82rem; color: var(--text-secondary); max-width: 340px; margin: 0 auto; line-height: 1.35;">
+                    Sign in to your account or create a new unique 6-digit Secret Code and Security Word.
+                </p>
+            </div>
+
+            <!-- Tab Switcher: Login vs Create Account -->
+            <div class="account-mode-tabs" role="tablist">
+                <button type="button" id="tab-login" class="account-tab active" role="tab" aria-selected="true">
+                    <i data-lucide="log-in" style="width: 14px; height: 14px;"></i>
+                    <span>Login</span>
+                </button>
+                <button type="button" id="tab-create" class="account-tab" role="tab" aria-selected="false">
+                    <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i>
+                    <span>Create Account</span>
+                </button>
+            </div>
+
+            <form id="secret-gate-form">
+                <!-- 6-Digit Secret Code Input -->
+                <div class="form-group">
+                    <label id="gate-input-label" for="gate-code-input" style="font-size: 0.85rem; font-weight: 500; display: flex; justify-content: space-between; align-items: center;">
+                        <span>6-Digit Secret Code <span style="color: var(--accent);">*</span></span>
+                        <span id="gate-code-badge" style="font-size: 0.72rem; color: var(--text-secondary); font-family: monospace;">(0-9 only)</span>
+                    </label>
+                    <div class="pin-inputs-wrapper" style="position: relative;">
+                        <input type="password" id="gate-code-input" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="6-digit PIN (e.g. 849201)" required autocomplete="off">
+                        <button type="button" id="btn-toggle-gate-code" class="btn-pwd-toggle" title="Show / Hide Code" aria-label="Toggle Secret Code Visibility">
+                            <i data-lucide="eye" style="width: 15px; height: 15px;"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Security Word (4 to 10 characters) Input -->
+                <div class="form-group" style="margin-top: 0.85rem;">
+                    <label for="gate-word-input" style="font-size: 0.85rem; font-weight: 500; display: flex; justify-content: space-between; align-items: center;">
+                        <span>Security Word <span style="color: var(--accent);">*</span></span>
+                        <span style="font-size: 0.72rem; color: var(--text-secondary);">(4-10 letters/numbers)</span>
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="gate-word-input" minlength="4" maxlength="10" placeholder="e.g. shivam, alpha" required autocomplete="off" style="letter-spacing: 0.8px;">
+                    </div>
+                    <small id="gate-word-hint" style="font-size: 0.73rem; color: var(--text-secondary); display: block; margin-top: 4px;">
+                        Required along with your Secret Code to securely log in.
+                    </small>
+                </div>
+
+                <!-- Confirm 6-Digit Code (Visible only during Create Account) -->
+                <div id="gate-confirm-code-group" class="form-group" style="display: none; margin-top: 0.85rem;">
+                    <label for="gate-code-confirm-input" style="font-size: 0.85rem; font-weight: 500;">
+                        Confirm 6-Digit Secret Code <span style="color: var(--accent);">*</span>
+                    </label>
+                    <div class="pin-inputs-wrapper">
+                        <input type="password" id="gate-code-confirm-input" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="Re-enter 6-digit PIN" autocomplete="off">
+                    </div>
+                </div>
+
+                <div id="gate-expiry-note" style="margin-top: 0.6rem; font-size: 0.73rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="clock" style="width: 13px; height: 13px; flex-shrink: 0;"></i>
+                    <span>Session stays active for 15 days of continuous activity.</span>
+                </div>
+
+                <div id="gate-error-msg" class="gate-error" style="display: none; margin-top: 0.75rem;"></div>
+
+                <button type="submit" id="gate-submit-btn" class="btn-submit" style="margin-top: 1rem; width: 100%;">
+                    Login to Account
+                </button>
+
+                <!-- Quick Action: Scan QR to Login -->
+                <div style="margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px solid rgba(255,255,255,0.08); text-align: center;">
+                    <button type="button" id="btn-open-scanner-from-gate" class="btn-secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0.55rem; font-size: 0.8rem; border-radius: 10px;">
+                        <i data-lucide="camera" style="width: 15px; height: 15px; color: var(--accent);"></i>
+                        <span>Scan QR Code to Login</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Secret Code Modal -->
+    <div id="change-code-modal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h2>Change Secret Code</h2>
+                <button class="close-change-code" aria-label="Close Change Secret Code Dialog"><i data-lucide="x"></i></button>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                Update your 6-digit security code. This code will be required when adding new channels.
+            </p>
+            <form id="change-code-form">
+                <div class="form-group">
+                    <label for="curr-secret-code">Current 6-Digit Secret Code</label>
+                    <input type="password" id="curr-secret-code" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="Enter current 6 digits" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="new-secret-code">New 6-Digit Secret Code</label>
+                    <input type="password" id="new-secret-code" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="Enter new 6 digits" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-new-secret-code">Confirm New 6-Digit Code</label>
+                    <input type="password" id="confirm-new-secret-code" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="Re-enter new 6 digits" required autocomplete="off">
+                </div>
+                <div id="change-code-session-info" style="padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                    15-day session active until: <span id="session-expiry-date" style="color: var(--text-primary); font-weight: 600;">--</span>
+                </div>
+                <button type="submit" class="btn-submit">Update Secret Code</button>
+                <button type="button" id="btn-lock-now" class="btn-secondary" style="margin-top: 0.75rem; width: 100%; border-color: rgba(239, 68, 68, 0.4); color: var(--danger);">
+                    Lock Session & Require Code
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- QR Code Session Share Modal -->
+    <div id="qr-modal" class="modal">
+        <div class="modal-content glass qr-modal-content" style="max-width: 310px; text-align: center; padding: 1.1rem;">
+            <div class="modal-header" style="justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="qr-code" style="color: var(--accent); width: 17px; height: 17px;"></i>
+                    <h2 style="font-size: 1.05rem; margin: 0;">Connect Device</h2>
+                </div>
+                <button id="close-qr-modal" class="btn-icon" aria-label="Close QR Modal" style="background: transparent; border: none; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; min-width: 28px;">
+                    <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                </button>
+            </div>
+            
+            <p style="font-size: 0.72rem; color: var(--text-secondary); margin: 0.2rem 0 0.7rem 0; line-height: 1.35;">
+                Scan with your phone camera or another device to connect instantly.
+            </p>
+
+            <div id="qr-canvas-container" style="background: #ffffff; padding: 8px; border-radius: 12px; display: inline-flex; justify-content: center; align-items: center; margin: 0 auto; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+                <canvas id="qr-code-canvas"></canvas>
+            </div>
+
+            <div style="margin-top: 0.75rem; padding: 0.55rem 0.7rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 0.75rem; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <span style="color: var(--text-secondary); font-size: 0.72rem;">Secret Code:</span>
+                    <span id="qr-secret-code-display" style="font-family: monospace; font-weight: bold; letter-spacing: 1.5px; color: var(--accent); font-size: 0.88rem;">••••••</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <span style="color: var(--text-secondary); font-size: 0.72rem;">Security Word:</span>
+                    <span id="qr-word-display" style="font-family: monospace; font-weight: bold; color: var(--accent); font-size: 0.82rem;">••••</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary); font-size: 0.72rem;">Database:</span>
+                    <span id="qr-channel-count-display" style="font-weight: 600; color: var(--text-primary); font-size: 0.75rem;">0 channels</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-top: 0.75rem;">
+                <button type="button" id="btn-copy-sync-link" class="btn-secondary" style="flex: 1; padding: 0.45rem; font-size: 0.75rem; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <i data-lucide="copy" style="width: 13px; height: 13px;"></i> Copy Link
+                </button>
+                <button type="button" id="btn-done-qr" class="btn-primary" style="flex: 1; padding: 0.45rem; font-size: 0.75rem; border-radius: 8px;">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live QR Code Scanner Modal -->
+    <div id="qr-scanner-modal" class="modal">
+        <div class="modal-content glass qr-scanner-modal-content" style="max-width: 360px; text-align: center; padding: 1.25rem;">
+            <div class="modal-header" style="justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="camera" style="color: var(--accent); width: 18px; height: 18px;"></i>
+                    <h2 style="font-size: 1.05rem; margin: 0;">Scan QR Code</h2>
+                </div>
+                <button id="close-qr-scanner" class="btn-icon" aria-label="Close QR Scanner" style="background: transparent; border: none; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; min-width: 28px;">
+                    <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                </button>
+            </div>
+            
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.1rem 0 0.75rem 0;">
+                Point your camera at a Lassu QR code or upload a QR image.
+            </p>
+
+            <!-- Video Viewfinder Frame -->
+            <div id="qr-reader-container" style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; border: 1px solid rgba(255,255,255,0.15); box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                <div id="qr-reader" style="width: 100%;"></div>
+                <div class="scanner-laser-line"></div>
+            </div>
+
+            <!-- Scanner Status / Feedback -->
+            <div id="scanner-feedback" style="margin-top: 0.65rem; font-size: 0.75rem; color: var(--text-secondary); min-height: 18px;">
+                Starting camera...
+            </div>
+
+            <!-- Scanner Toolbar -->
+            <div style="display: flex; gap: 8px; margin-top: 0.75rem;">
+                <label for="qr-file-input" class="btn-secondary" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0.5rem 0.6rem; font-size: 0.76rem; border-radius: 8px; cursor: pointer;">
+                    <i data-lucide="image" style="width: 14px; height: 14px;"></i> Upload QR Image
+                    <input type="file" id="qr-file-input" accept="image/*" style="display: none;">
+                </label>
+                <button type="button" id="btn-toggle-camera" class="btn-secondary" style="padding: 0.5rem 0.75rem; font-size: 0.76rem; border-radius: 8px;" title="Switch Camera" aria-label="Switch Camera">
+                    <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Offline Connectivity Banner -->
+    <div id="offline-banner" class="offline-banner" style="display: none;">
+        <span class="offline-pulse"></span>
+        <span>Offline Mode — Cached application shell is active.</span>
+    </div>
+
+    <!-- PWA iOS Install Guide Modal -->
+    <div id="pwa-ios-modal" class="modal">
+        <div class="modal-content glass" style="max-width: 320px; text-align: center; padding: 1.25rem;">
+            <div class="modal-header" style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="smartphone" style="color: var(--accent); width: 20px; height: 20px;"></i>
+                    <h3 style="margin: 0; font-size: 1.05rem;">Install Lassu App</h3>
+                </div>
+                <button type="button" id="close-pwa-ios-modal" class="btn-icon" aria-label="Close iOS install guide" style="background: transparent; border: none; width: 28px; height: 28px; min-width: 28px;">
+                    <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                </button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; text-align: left; font-size: 0.82rem; color: var(--text-secondary); margin: 0.75rem 0;">
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <span style="background: rgba(255,255,255,0.1); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; flex-shrink: 0; font-size: 0.75rem;">1</span>
+                    <span>Tap the <strong>Share</strong> button <i data-lucide="share" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i> in Safari's bottom toolbar.</span>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <span style="background: rgba(255,255,255,0.1); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; flex-shrink: 0; font-size: 0.75rem;">2</span>
+                    <span>Scroll down and tap <strong>Add to Home Screen</strong> <i data-lucide="plus-square" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"></i>.</span>
+                </div>
+            </div>
+            <button type="button" id="btn-done-ios-pwa" class="btn-primary" style="width: 100%; padding: 0.6rem; margin-top: 0.5rem; font-size: 0.85rem;">
+                Got it
+            </button>
+        </div>
+    </div>
+
+    <script src="lassu.js" type="module"></script>
+    <script>
+        // Initialize lucide icons safely when DOM is ready
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide && window.lucide.createIcons) {
+                window.lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+</html>
